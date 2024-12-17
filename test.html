@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>GunDB Messaging Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  </head>
+  <body>
+    <h1>GunDB Relay Server Test</h1>
+    <div>
+      <input
+        type="text"
+        id="messageInput"
+        placeholder="Type your message here..."
+      />
+      <button onclick="sendMessage()">Send Message</button>
+    </div>
+    <h2>Messages:</h2>
+    <ul id="messageList"></ul>
+    <!-- Messages will display here -->
+
+    <script>
+      const gun = Gun(["http://localhost:8765/gun"]); // Connect to GunDB Relay
+      const username = "user1"; // Hardcoded username for testing
+      const channel = gun.get("channels").get("myChannel"); // Channel to use
+
+      // Deduplication set: Tracks already processed messages
+      const processedMessages = new Set();
+
+      // Send a message
+      function sendMessage() {
+        const input = document.getElementById("messageInput");
+        if (input.value.trim()) {
+          // Store the message in GunDB
+          const timestamp = Date.now();
+          channel.get("key-" + timestamp).put({
+            from: username,
+            text: input.value.trim(),
+            timestamp: Date.now(),
+          });
+          input.value = ""; // Clear the input field
+        }
+      }
+
+      // Receive and display messages
+      channel.map().on((data, key) => {
+        if (data && data.text && !processedMessages.has(key)) {
+          processedMessages.add(key); // Mark the message as processed
+
+          // Display message
+          const messageList = document.getElementById("messageList");
+          const li = document.createElement("li");
+          li.textContent = `[${new Date(
+            data.timestamp
+          ).toLocaleTimeString()}] ${data.from || "Unknown"}: ${data.text}`;
+          messageList.appendChild(li);
+        }
+      });
+    </script>
+  </body>
+</html>
